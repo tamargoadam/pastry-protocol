@@ -4,6 +4,7 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="PastryNode.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>

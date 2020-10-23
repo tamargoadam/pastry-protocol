@@ -1,5 +1,7 @@
 module Main
 
+open PastryNode
+
 open System
 open Akka.Actor
 open Akka.FSharp
