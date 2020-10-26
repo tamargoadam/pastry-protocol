@@ -44,7 +44,7 @@ let handleMessage msg =
     let msgType, _, _ = msg
     match msgType with
     | 1 -> join msg // join request
-    | 2 // state tables
+    | 2 // state tables     // TODO: run function that facilitates table initialization here
     |_ -> forward msg // standard msg
 
 
