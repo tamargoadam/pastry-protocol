@@ -38,9 +38,9 @@ let join msg =
 
 let handleMessage msg = 
     // msg must be 3-tuple with: 
-    // fst = msg type
-    // snd = content
-    // thrd = destination ID
+    // fst: msg type
+    // snd: content
+    // thrd: destination ID
     let msgType, _, _ = msg
     match msgType with
     | 1 -> join msg // join request

@@ -20,8 +20,14 @@ let supervisorActor (numNodes: int) (mailbox : Actor<'a>)=
     // listen for child actors sending messages containing number of hops for them to recieve message
     // calculate and display average number of hops and terminate when recieved numNodes messages
 
-    // let f = (spawn mailbox ("worker") (participantActor (1)))
+    let nodeMap = Map.empty
 
+    let mutable randId = generateNodeId
+    for i in 0 .. numNodes-1 do 
+                while  nodeMap.ContainsKey(randId) do
+                    randId <- generateNodeId
+                nodeMap.Add(randId, (spawn mailbox ("worker"+randId.ToString()) (participantActor randId))) |> ignore
+                
     let rec loop () = 
         actor {
             let! msg = mailbox.Receive()
