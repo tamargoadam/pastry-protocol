@@ -9,7 +9,7 @@ let findNextHop (routingTable: Map<int,string>) (destinationId: int) =
 
     0
 
-let ParticipantActor (mailbox : Actor<'a>)= 
+let participantActor (nodeId: int) (mailbox : Actor<'a>)= 
     // TODO: instantiate mutable ID -> Address map
     // manage different kinds of messages based on contents
     // if message ment to end at this participant is recieved, send message with number of hops to registryActor
