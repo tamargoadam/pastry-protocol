@@ -5,7 +5,7 @@ open PastryNode
 open System
 open Akka.Actor
 open Akka.FSharp
-open System.Security.Cryptography
+
 
 let system = ActorSystem.Create("FSharp")
 
@@ -13,8 +13,6 @@ let generateNodeId =
     let rand = Random()
     let id = rand.Next(0, typeof<int>.GetField("MaxValue").GetValue() |> unbox)
     id
-    // Console.WriteLine("{0}", id)
-    // Convert.ToString(id, 2)
 
 
 let supervisorActor (numNodes: int) (mailbox : Actor<'a>)= 
