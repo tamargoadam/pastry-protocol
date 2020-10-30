@@ -106,7 +106,7 @@ let supervisorActor (numNodes: int) (numRequest: int) (mailbox : Actor<Superviso
     
     // add to total num hops and terminate process when all requests have reached their destination
     let processDoneMsg (numHops: int) =
-        Console.WriteLine("Destination reached in {0} hops!", numHops)
+        Console.WriteLine("Destination reached in {0} hops! ({1})", numHops, numReqDone)
         numReqDone <- numReqDone + 1
         numHopsSum <- numHopsSum + numHops
         if numRequest = numRequest*numNodes then
@@ -121,7 +121,7 @@ let supervisorActor (numNodes: int) (numRequest: int) (mailbox : Actor<Superviso
             let sender = mailbox.Sender()
             match msg with
             |StartPastry -> beginSendingRequests sender
-            |DestinationReached numHops -> 
+            |DestinationReached numHops -> processDoneMsg numHops
             return! loop()
         }
     loop()

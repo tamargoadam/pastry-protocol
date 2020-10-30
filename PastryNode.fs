@@ -56,7 +56,7 @@ let participantActor (nodeId: string) (mailbox : Actor<PastryMsg>) =
             // the message is at its destination
             mailbox.Context.Parent <! DestinationReached (numHops)
         else if (fst(leafSet.[0]) |> int) < (destinationId |> int) && (fst(leafSet.[leafSet.Length-1]) |> int) > (destinationId |> int) then
-            Console.WriteLine("DEBUG: ls")
+            // Console.WriteLine("DEBUG: ls")
             // route by nearest in leaf set
             let mutable (nextHop: string*IActorRef) = ("-1", null)
             for i, j in leafSet do
@@ -64,14 +64,14 @@ let participantActor (nodeId: string) (mailbox : Actor<PastryMsg>) =
                     nextHop <- (i,j)
             snd(nextHop) <! RouteRequest (destinationId, numHops+1)
         else
-            Console.WriteLine("DEBUG: rt")
+            // Console.WriteLine("DEBUG: rt")
             // route by routing table
             let pre = shl destinationId nodeId
             let dl = destinationId.Chars(pre) |> charToInt
             if fst(routingTable.[pre,dl]) <> "-1" then
                 snd(routingTable.[pre,dl]) <! RouteRequest (destinationId, numHops+1)
             else
-                Console.WriteLine("DEBUG: all")
+                // Console.WriteLine("DEBUG: all")
                 //if not routing entry not availible route to id with shl longer than current pre & smaller difference
                 let mutable found = false
 
