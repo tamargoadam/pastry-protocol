@@ -48,7 +48,7 @@ let handleMessage msg =
     |_ -> forward msg // standard msg
 
 
-let participantActor (nodeId: int) (mailbox : Actor<'a>)= 
+let participantActor (nodeId: string) (mailbox : Actor<'a>)= 
     // TODO: instantiate mutable ID -> Address map
     // manage different kinds of messages based on contents
     // if message ment to end at this participant is recieved, send message with number of hops to registryActor

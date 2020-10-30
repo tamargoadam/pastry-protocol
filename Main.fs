@@ -1,5 +1,6 @@
 module Main
 
+open Akka.FSharp
 open PastrySupervisor
 
 open System
@@ -9,8 +10,10 @@ let main argv =
     if argv.Length <> 2 then
         Console.WriteLine("Invalid Input Provided")
         Console.WriteLine("Required Format: project3 <num_nodes> <num_requests>")
+        Console.WriteLine("{0}", argv.Length)
     else
         Console.WriteLine("Starting Pastry Protocol...")
     
-    Console.WriteLine("{0}", generateNodeId)
+    let supervisor = spawn system ("supervisor") (supervisorActor 5)
+    let res = supervisor <? "done?" |> Async.RunSynchronously
     0 // return int exit code
