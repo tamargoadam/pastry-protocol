@@ -3,61 +3,48 @@ module PastryNode
 open System
 open Akka.Actor
 open Akka.FSharp
-open System.Collections.Generic
 
-// Config parameters for routing table
-let B = 4
-let NUMROWS = 9
-let NUMCOLS = int(2.0**float(B)) - 1
-
-let routingTable : (int*string)[,] = Array2D.zeroCreate NUMROWS NUMCOLS
+// row and col constants for routing tables
+let NUMROWS = 8
+let NUMCOLS = 4
 
 
-let findNextHop (destinationId: int) =
-    // TODO: return address of key closest to destinationId
-    0
+type PastryMsg = 
+    | InitPastry of (string*IActorRef)[] * (string*IActorRef)[,] * int
+    | RouteRequest of string * int
 
+type SupervisorMsg =
+    | StartPastry
+    | DestinationReached of int
 
-let forward msg =
-    // fwd msg to next hop
-    let _, _, destinationId = msg
-    let nextHop = findNextHop destinationId
-    // nextHop <! msg
-    0
-
-
-let join msg = 
-    // fwd msg to next hop and send state table
-    let _, _, joinNodeId = msg
-    let nextHop = findNextHop joinNodeId
-    // add joining node to tables?
-    // send tables to joining node 
-    // nextHop <! msg
-    0
-
-
-let handleMessage msg = 
-    // msg must be 3-tuple with: 
-    // fst: msg type
-    // snd: content
-    // thrd: destination ID
-    let msgType, _, _ = msg
-    match msgType with
-    | 1 -> join msg // join request
-    | 2 // state tables     // TODO: run function that facilitates table initialization here
-    |_ -> forward msg // standard msg
-
-
-let participantActor (nodeId: string) (mailbox : Actor<'a>)= 
+let participantActor (nodeId: string) (mailbox : Actor<PastryMsg>) = 
     // TODO: instantiate mutable ID -> Address map
     // manage different kinds of messages based on contents
     // if message ment to end at this participant is recieved, send message with number of hops to registryActor
+    let mutable numRequests = 0
+    let mutable leafSet : (string*IActorRef)[] = null
+    let mutable routingTable : (string*IActorRef)[,] = null
+
+    // set leaf set, routing table, and num requests
+    let init (ls: (string*IActorRef)[]) (rt: (string*IActorRef)[,]) (nr: int) =
+        leafSet <- ls
+        routingTable <- rt
+        numRequests <- nr
+
+    let processReq (destinationId: string) (numHops: int) =
+        if destinationId = nodeId then
+            mailbox.Context.Parent <! DestinationReached (numHops)
+        // else
+        //     // TODO: implement routing here
 
     let rec loop () = 
         actor {
             let! msg = mailbox.Receive()
             let sender = mailbox.Sender()
-            handleMessage msg
+            match msg with
+            |InitPastry (ls, rt, nr) -> init ls rt nr
+            |RouteRequest (id, nh) -> processReq id nh
+
             return! loop()
         }
     loop()

@@ -9,22 +9,31 @@ open System.Collections.Generic
 
 let system = ActorSystem.Create("FSharp")
 
-let NUMROWS = 8
-let NUMCOLS = 4
 
 let getRandId (rand: Random) =
-    let mutable n = 8 // num didgets
+    let mutable n = NUMROWS // num didgets
     let mutable idString = ""
     for i in 0 .. n-1 do
-        idString <- idString + rand.Next(0, 9).ToString()
+        idString <- idString + rand.Next(0, 3).ToString()
     idString
 
-let supervisorActor (numNodes: int) (mailbox : Actor<'a>)= 
-    // TODO: spawn new actors and facilitate node joining with this actor
-    // listen for child actors sending messages containing number of hops for them to recieve message
-    // calculate and display average number of hops and terminate when recieved numNodes messages
 
-    let topology = Map.empty<string, IActorRef>
+let hasPrefix (prefix: string) (full: string) = 
+    if prefix.Length < full.Length then
+        full.Substring(0, prefix.Length).Equals(prefix)
+    else false
+
+
+let inline charToInt c = int c - int '0'
+
+
+// this actor spawns participant actors and facilitates starting and ending the protocol
+let supervisorActor (numNodes: int) (numRequest: int) (mailbox : Actor<SupervisorMsg>)= 
+    
+    let mutable numReqDone = 0
+    let mutable numHopsSum = 0
+    let mutable terminateAddress = mailbox.Context.Parent
+    let mutable topology = new Dictionary<string, IActorRef>()
 
     let sortedIdList =
         let mutable l = 4 // num cols in routing table & entries in leaf set
@@ -41,33 +50,80 @@ let supervisorActor (numNodes: int) (mailbox : Actor<'a>)=
 
     // fill id -> IActorRef map
     for j in 0 .. numNodes-1 do
-        topology.Add(sortedIdList.[j], spawn system ("worker"+sortedIdList.[j]) (participantActor sortedIdList.[j])) |> ignore
+        topology.Add(sortedIdList.[j], spawn system ("worker"+sortedIdList.[j]) (participantActor (sortedIdList.[j]))) |> ignore
 
-    // generate node tables and spawn nodes
+    // generate node tables and send init message to each node
     for i in 0 .. numNodes-1 do
+
+        let currentNodeId = sortedIdList.[i]
         
-        // generate leaf node table
-        let leafNodes = new List<string>()
+        // generate leaf set
+        let leafSet = new List<string*IActorRef>()
         for j in Math.Max(i-5, 0) .. Math.Min(i+5, numNodes-1) do
-            if j <> i then leafNodes.Add(sortedIdList.Item(j))
-        Console.WriteLine("{0}:", sortedIdList.Item(i))
-        Console.WriteLine(sprintf "%A" leafNodes)
+            if j <> i then leafSet.Add(sortedIdList.[j], topology.Item(sortedIdList.[j]))
         
         // generate routing table
-        //let routingTable : (int*string)[,] = Array2D.zeroCreate NUMROWS NUMCOLS
-        
-        
+        let routingTable : (string*IActorRef)[,] = Array2D.init NUMROWS NUMCOLS (fun x y -> ("-1", null))
+        for row in 0 .. (NUMROWS-1) do
+            let pre = currentNodeId.Substring(0, row)
+
+            for col in 0 .. NUMCOLS-1 do
+                let mutable found = false
+                if col <> (currentNodeId.Chars(row) |> charToInt) then
+                    let mutable listIndex = 0
+                    let mutable id = sortedIdList.[listIndex]
+
+                    // find id that meets index requierments; if none, leave -1
+                    while fst(routingTable.[row, col]) = "-1" && listIndex < numNodes do
+                        id <- sortedIdList.[listIndex]
+                        if hasPrefix pre id && id.Chars(row) |> charToInt = col then
+                            routingTable.[row, col] <- (id, topology.[id])
+                            found <- true
+                        listIndex <- listIndex + 1
+
+                if not found then
+                    routingTable.[row, col] <- ("-1", null)
+                found <- false
+
+        // send init message to node i
+        topology.[currentNodeId] <! InitPastry (leafSet.ToArray(), routingTable, numRequest)
+
         // clear lists for next iteration
-        leafNodes.Clear()
+        leafSet.Clear()
          
 
+    // signal each node to make a request to another node at random at a rate of 1 req/sec
+    let beginSendingRequests (sender: IActorRef) =
+        terminateAddress <- sender
+        let rand = Random()
+        let mutable randIndex = rand.Next(0, numNodes-1)
+        let mutable currentNodeId = ""
+        for i in 0 .. numRequest do
+            for j in 0 .. numNodes-1 do
+                currentNodeId <- sortedIdList.[j]
+                while randIndex = j do
+                    randIndex <- rand.Next(0, numNodes-1)
+                topology.[currentNodeId] <! RouteRequest (sortedIdList.[randIndex], 0)
+            System.Threading.Thread.Sleep(1000)
 
-    // nodeMap.Add(randId, (spawn mailbox ("worker"+randId.ToString()) (participantActor randId))) |> ignore       
+    
+    // add to total num hops and terminate process when all requests have reached their destination
+    let processDoneMsg (numHops: int) =
+        numReqDone <- numReqDone + 1
+        numHopsSum <- numHopsSum + numHops
+        if numRequest = numRequest*numNodes then
+            Console.WriteLine("All requests have been routed to their destination!")
+            Console.WriteLine("Avg. number of hops per request: {0}", numHopsSum/numReqDone)
+            terminateAddress <! "done"
+
 
     let rec loop () = 
         actor {
             let! msg = mailbox.Receive()
             let sender = mailbox.Sender()
+            match msg with
+            |StartPastry -> beginSendingRequests sender
+            |DestinationReached numHops -> 
             return! loop()
         }
     loop()
