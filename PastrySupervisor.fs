@@ -24,9 +24,6 @@ let hasPrefix (prefix: string) (full: string) =
     else false
 
 
-let inline charToInt c = int c - int '0'
-
-
 // this actor spawns participant actors and facilitates starting and ending the protocol
 let supervisorActor (numNodes: int) (numRequest: int) (mailbox : Actor<SupervisorMsg>)= 
     
@@ -50,7 +47,7 @@ let supervisorActor (numNodes: int) (numRequest: int) (mailbox : Actor<Superviso
 
     // fill id -> IActorRef map
     for j in 0 .. numNodes-1 do
-        topology.Add(sortedIdList.[j], spawn system ("worker"+sortedIdList.[j]) (participantActor (sortedIdList.[j]))) |> ignore
+        topology.Add(sortedIdList.[j], spawn mailbox ("worker"+sortedIdList.[j]) (participantActor (sortedIdList.[j]))) |> ignore
 
     // generate node tables and send init message to each node
     for i in 0 .. numNodes-1 do
@@ -109,6 +106,7 @@ let supervisorActor (numNodes: int) (numRequest: int) (mailbox : Actor<Superviso
     
     // add to total num hops and terminate process when all requests have reached their destination
     let processDoneMsg (numHops: int) =
+        Console.WriteLine("Destination reached in {0} hops!", numHops)
         numReqDone <- numReqDone + 1
         numHopsSum <- numHopsSum + numHops
         if numRequest = numRequest*numNodes then

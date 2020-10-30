@@ -14,6 +14,6 @@ let main argv =
     else
         Console.WriteLine("Starting Pastry Protocol...")
     
-    let supervisor = spawn system ("supervisor") (supervisorActor 100 10)
+    let supervisor = spawn system ("supervisor") (supervisorActor 50 5)
     let res = supervisor <? PastryNode.SupervisorMsg.StartPastry |> Async.RunSynchronously
     0 // return int exit code
