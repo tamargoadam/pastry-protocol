@@ -10,10 +10,11 @@ let main argv =
     if argv.Length <> 2 then
         Console.WriteLine("Invalid Input Provided")
         Console.WriteLine("Required Format: project3 <num_nodes> <num_requests>")
-        Console.WriteLine("{0}", argv.Length)
+        -1
     else
         Console.WriteLine("Starting Pastry Protocol...")
-    
-    let supervisor = spawn system ("supervisor") (supervisorActor 50 5)
-    let res = supervisor <? PastryNode.SupervisorMsg.StartPastry |> Async.RunSynchronously
-    0 // return int exit code
+        let numNodes: int = int argv.[0]
+        let numRequests: int = int argv.[1]
+        let supervisor = spawn system ("supervisor") (supervisorActor numNodes numRequests)
+        let res = supervisor <? PastryNode.SupervisorMsg.StartPastry |> Async.RunSynchronously
+        0

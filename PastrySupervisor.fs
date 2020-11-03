@@ -31,6 +31,8 @@ let supervisorActor (numNodes: int) (numRequest: int) (mailbox : Actor<Superviso
     let mutable numHopsSum = 0
     let mutable terminateAddress = mailbox.Context.Parent
     let mutable topology = new Dictionary<string, IActorRef>()
+    let mutable allDestinationsFound = true
+    let mutable numFailed = 0
 
     let sortedIdList =
         let mutable l = 4 // num cols in routing table & entries in leaf set
@@ -93,24 +95,31 @@ let supervisorActor (numNodes: int) (numRequest: int) (mailbox : Actor<Superviso
     let beginSendingRequests (sender: IActorRef) =
         terminateAddress <- sender
         let rand = Random()
-        let mutable randIndex = rand.Next(0, numNodes-1)
         let mutable currentNodeId = ""
-        for i in 0 .. numRequest do
+        for i in 0 .. numRequest-1 do
             for j in 0 .. numNodes-1 do
                 currentNodeId <- sortedIdList.[j]
+                let mutable randIndex = rand.Next(0, numNodes)
                 while randIndex = j do
-                    randIndex <- rand.Next(0, numNodes-1)
+                    randIndex <- rand.Next(0, numNodes)
                 topology.[currentNodeId] <! RouteRequest (sortedIdList.[randIndex], 0)
             System.Threading.Thread.Sleep(1000)
 
     
     // add to total num hops and terminate process when all requests have reached their destination
     let processDoneMsg (numHops: int) =
-        Console.WriteLine("Destination reached in {0} hops! ({1})", numHops, numReqDone)
         numReqDone <- numReqDone + 1
-        numHopsSum <- numHopsSum + numHops
-        if numRequest = numRequest*numNodes then
-            Console.WriteLine("All requests have been routed to their destination!")
+        if numHops < 0 then
+            allDestinationsFound <- false
+            numFailed <- numFailed + 1
+        else
+            // Console.WriteLine("Destination reached in {0} hops! ({1})", numHops, numReqDone)
+            numHopsSum <- numHopsSum + numHops
+        if numReqDone >= numRequest*numNodes then
+            if allDestinationsFound then
+                Console.WriteLine("All requests have been routed to their destination!")
+            else
+                Console.WriteLine("{0} out of {1} requests have been routed to their destination.", (numReqDone-numFailed), numReqDone)
             Console.WriteLine("Avg. number of hops per request: {0}", numHopsSum/numReqDone)
             terminateAddress <! "done"
 
@@ -122,6 +131,7 @@ let supervisorActor (numNodes: int) (numRequest: int) (mailbox : Actor<Superviso
             match msg with
             |StartPastry -> beginSendingRequests sender
             |DestinationReached numHops -> processDoneMsg numHops
+            |DestinationNotFound -> processDoneMsg -1
             return! loop()
         }
     loop()

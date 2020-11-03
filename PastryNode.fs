@@ -19,15 +19,14 @@ type PastryMsg =
 type SupervisorMsg =
     | StartPastry
     | DestinationReached of int
+    | DestinationNotFound
 
 let inline charToInt c = int c - int '0'
 
 
 // this actor acts as a participant node in the pastry network
 let participantActor (nodeId: string) (mailbox : Actor<PastryMsg>) = 
-    // TODO: instantiate mutable ID -> Address map
-    // manage different kinds of messages based on contents
-    // if message ment to end at this participant is recieved, send message with number of hops to registryActor
+
     let mutable numRequests = 0
     let mutable leafSet : (string*IActorRef)[] = null
     let mutable routingTable : (string*IActorRef)[,] = null
@@ -55,29 +54,26 @@ let participantActor (nodeId: string) (mailbox : Actor<PastryMsg>) =
         if destinationId = nodeId then
             // the message is at its destination
             mailbox.Context.Parent <! DestinationReached (numHops)
-        else if (fst(leafSet.[0]) |> int) < (destinationId |> int) && (fst(leafSet.[leafSet.Length-1]) |> int) > (destinationId |> int) then
-            // Console.WriteLine("DEBUG: ls")
+        else if Math.Min((fst(leafSet.[0]) |> int), (nodeId |> int)) <= (destinationId |> int) && (fst(leafSet.[leafSet.Length-1]) |> int) >= (destinationId |> int) then
             // route by nearest in leaf set
             let mutable (nextHop: string*IActorRef) = ("-1", null)
             for i, j in leafSet do
-                if shl i destinationId > shl (fst(nextHop)) destinationId then
+                if shl i destinationId > shl (fst(nextHop)) destinationId || destinationId = i then
                     nextHop <- (i,j)
             snd(nextHop) <! RouteRequest (destinationId, numHops+1)
         else
-            // Console.WriteLine("DEBUG: rt")
             // route by routing table
             let pre = shl destinationId nodeId
             let dl = destinationId.Chars(pre) |> charToInt
             if fst(routingTable.[pre,dl]) <> "-1" then
                 snd(routingTable.[pre,dl]) <! RouteRequest (destinationId, numHops+1)
             else
-                // Console.WriteLine("DEBUG: all")
                 //if not routing entry not availible route to id with shl longer than current pre & smaller difference
                 let mutable found = false
 
                 // if qulifies, send msg and return true
                 let sendAttempt next = 
-                    if shl (fst(next)) destinationId >= pre && abs ((fst(next) |> int) - (destinationId |> int)) < abs ((nodeId |> int) - (destinationId |> int)) then
+                    if shl (fst(next)) destinationId > pre && abs ((fst(next) |> int) - (destinationId |> int)) < abs ((nodeId |> int) - (destinationId |> int)) then
                         snd(next) <! RouteRequest (destinationId, numHops+1)
                         true
                     else
@@ -96,7 +92,7 @@ let participantActor (nodeId: string) (mailbox : Actor<PastryMsg>) =
                     i <- i+1
                 if not found then
                     Console.WriteLine("Destination could not be found!")
-                    mailbox.Context.Parent <! DestinationReached (numHops)
+                    mailbox.Context.Parent <! DestinationNotFound
 
                 
 
