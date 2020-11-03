@@ -9,7 +9,7 @@ open System
 let main argv =
     if argv.Length <> 2 then
         Console.WriteLine("Invalid Input Provided")
-        Console.WriteLine("Required Format: project3 <num_nodes> <num_requests>")
+        Console.WriteLine("Required Format: dotnet run <num_nodes> <num_requests>")
         -1
     else
         Console.WriteLine("Starting Pastry Protocol...")
